@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/antihax/optional"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	sqconnect "github.com/square/square-connect-go-sdk/swagger"
@@ -30,11 +31,24 @@ func init() {
 	cfg.AddDefaultHeader("Authorization", "Bearer EAAAEINRS1-ATVKx_ZBs2oVgffIzRtDcDcJ7LReuJTdCs4Qo1ECr7yCmwQPgPRJr")
 }
 
+type BatchUpdate struct {
+	CatalogObjectBatch sqconnect.CatalogObjectBatch `json:"catalogObjectBatch"`
+	ApiKey             string                       `json:"apiKey"`
+}
+
 // using go SDK
 func ListCatalog(c *gin.Context) {
 	client := sqconnect.NewAPIClient(cfg)
 	ctx := context.TODO()
 	listCatalogResponse, _, err := client.CatalogApi.ListCatalog(ctx, &sqconnect.CatalogApiListCatalogOpts{})
+
+	bodyBytes, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		fmt.Println(err)
+	}
+	bodyString := string(bodyBytes)
+	fmt.Println("BODY STRING")
+	fmt.Println(bodyString)
 
 	// return data
 	fmt.Println(listCatalogResponse, err)
@@ -91,16 +105,17 @@ func UpdateBatchCatalogObject(c *gin.Context) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	// bodyString := string(bodyBytes)
-	// fmt.Println("BODY STRING")
-	// fmt.Println(bodyString)
+	bodyString := string(bodyBytes)
+	fmt.Println("BODY STRING")
+	fmt.Println(bodyString)
 
-	var catalogObjectsBatch sqconnect.CatalogObjectBatch
+	var catalogObjectsBatch BatchUpdate
 	json.Unmarshal([]byte(bodyBytes), &catalogObjectsBatch)
+	fmt.Println("TESTING API KEY:      ", catalogObjectsBatch.ApiKey)
 
 	batchUpsertCatalogObjectsRequest := sqconnect.BatchUpsertCatalogObjectsRequest{
 		IdempotencyKey: uuid.New().String(),
-		Batches:        []sqconnect.CatalogObjectBatch{catalogObjectsBatch},
+		Batches:        []sqconnect.CatalogObjectBatch{catalogObjectsBatch.CatalogObjectBatch},
 	}
 	ctx := context.TODO()
 
@@ -170,4 +185,22 @@ func OrderSimple(c *gin.Context) {
 	fmt.Printf("Id: %s, LocationId: %s", createOrderReponse.Order.Id, createOrderReponse.Order.LocationId)
 	fmt.Println(string(body))
 	c.IndentedJSON(http.StatusOK, createOrderReponse)
+}
+
+func ListCustomers(c *gin.Context) {
+	// TODO(tredshaw): add support for API Key from app
+	client := sqconnect.NewAPIClient(cfg)
+	ctx := context.TODO()
+
+	var sortOrder interface{} = "DESC"
+	var sortField interface{} = "CREATED_AT"
+
+	listCustomersResponse, _, err := client.CustomersApi.ListCustomers(ctx, &sqconnect.CustomersApiListCustomersOpts{
+		SortOrder: optional.NewInterface(sortOrder),
+		SortField: optional.NewInterface(sortField),
+	})
+
+	// return data
+	fmt.Println(listCustomersResponse, err)
+	c.IndentedJSON(http.StatusOK, listCustomersResponse)
 }
