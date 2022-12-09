@@ -16,5 +16,4 @@ func main() {
 
 	router.GET("/customers", api.ListCustomers)
 	router.Run("localhost:8080")
-
 }

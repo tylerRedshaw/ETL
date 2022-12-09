@@ -28,7 +28,6 @@ var (
 
 func init() {
 	fmt.Println("This will get called on main initialization")
-	cfg.AddDefaultHeader("Authorization", "Bearer EAAAEINRS1-ATVKx_ZBs2oVgffIzRtDcDcJ7LReuJTdCs4Qo1ECr7yCmwQPgPRJr")
 }
 
 type BatchUpdate struct {
@@ -40,33 +39,30 @@ type BatchUpdate struct {
 func ListCatalog(c *gin.Context) {
 	client := sqconnect.NewAPIClient(cfg)
 	ctx := context.TODO()
+	cfg.AddDefaultHeader("Authorization", fmt.Sprintf("Bearer %s", c.Query("key")))
+
 	listCatalogResponse, _, err := client.CatalogApi.ListCatalog(ctx, &sqconnect.CatalogApiListCatalogOpts{})
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	bodyBytes, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		fmt.Println(err)
 	}
+
 	bodyString := string(bodyBytes)
-	fmt.Println("BODY STRING")
 	fmt.Println(bodyString)
 
-	// return data
-	fmt.Println(listCatalogResponse, err)
+	// return and log response
 	c.IndentedJSON(http.StatusOK, listCatalogResponse)
 }
 
 func UpdateCatalogObject(c *gin.Context) {
 	client := sqconnect.NewAPIClient(cfg)
-	fmt.Println("REQUEST BODY")
-	bodyBytes, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		fmt.Println(err)
-	}
-	bodyString := string(bodyBytes)
-	fmt.Println("BODY STRING")
-	fmt.Println(bodyString)
-
+	cfg.AddDefaultHeader("Authorization", fmt.Sprintf("Bearer %s", c.Query("key")))
 	ctx := context.TODO()
+
 	upsertCatalogObjectRequest := sqconnect.UpsertCatalogObjectRequest{
 		IdempotencyKey: uuid.New().String(),
 		Object: &sqconnect.CatalogObject{
@@ -80,7 +76,7 @@ func UpdateCatalogObject(c *gin.Context) {
 					Currency: &usd_currency,
 				},
 				ItemId: "HTDOPMSWWQ22YMBNDHW6ICCH",
-				Name:   "Blah2",
+				Name:   "fakeName",
 			},
 			Version: 1669990656318,
 		},
@@ -100,24 +96,21 @@ func UpdateCatalogObject(c *gin.Context) {
 
 func UpdateBatchCatalogObject(c *gin.Context) {
 	client := sqconnect.NewAPIClient(cfg)
-	fmt.Println("REQUEST BODY")
+	cfg.AddDefaultHeader("Authorization", fmt.Sprintf("Bearer %s", c.Query("key")))
+	ctx := context.TODO()
+
 	bodyBytes, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		fmt.Println(err)
 	}
-	bodyString := string(bodyBytes)
-	fmt.Println("BODY STRING")
-	fmt.Println(bodyString)
 
 	var catalogObjectsBatch BatchUpdate
 	json.Unmarshal([]byte(bodyBytes), &catalogObjectsBatch)
-	fmt.Println("TESTING API KEY:      ", catalogObjectsBatch.ApiKey)
 
 	batchUpsertCatalogObjectsRequest := sqconnect.BatchUpsertCatalogObjectsRequest{
 		IdempotencyKey: uuid.New().String(),
 		Batches:        []sqconnect.CatalogObjectBatch{catalogObjectsBatch.CatalogObjectBatch},
 	}
-	ctx := context.TODO()
 
 	upsertCatalogObjectResponse, res, err := client.CatalogApi.BatchUpsertCatalogObjects(ctx, batchUpsertCatalogObjectsRequest)
 
@@ -191,6 +184,7 @@ func ListCustomers(c *gin.Context) {
 	// TODO(tredshaw): add support for API Key from app
 	client := sqconnect.NewAPIClient(cfg)
 	ctx := context.TODO()
+	cfg.AddDefaultHeader("Authorization", fmt.Sprintf("Bearer %s", c.Query("key")))
 
 	var sortOrder interface{} = "DESC"
 	var sortField interface{} = "CREATED_AT"
